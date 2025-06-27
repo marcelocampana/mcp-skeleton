@@ -1,1 +1,39 @@
+# Salidas de compilación
 build
+dist
+out
+
+# Dependencias
+node_modules/
+
+# Archivos de entorno
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de editores/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+
+# Otros archivos comunes
+coverage/
+*.log
+
+# Archivos de pruebas
+jest-coverage/
