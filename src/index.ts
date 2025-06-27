@@ -37,48 +37,89 @@ server.tool(
 );
 
 let currentSpaceId = process.env.STORYBLOK_SPACE_ID;
+let storyblokRegion: "eu" | "us" | "ap" | "ca" | "cn" | undefined = undefined; // Región detectada o forzada
+
+function detectRegionFromSpaceId(spaceId: string): "eu" | "us" | "ap" | "ca" | "cn" {
+  if (/^10\d+/.test(spaceId)) return "us";
+  // Puedes agregar más reglas aquí si Storyblok publica los patrones para otras regiones
+  return "eu"; // Por defecto EU
+}
+
+function getStoryblokApiBase() {
+  const region = storyblokRegion || (currentSpaceId ? detectRegionFromSpaceId(currentSpaceId) : "eu");
+  switch (region) {
+    case "us":
+      return "https://api-us.storyblok.com/v1";
+    case "ap":
+      return "https://api-ap.storyblok.com/v2";
+    case "ca":
+      return "https://api-ca.storyblok.com/v2";
+    case "cn":
+      return "https://app.storyblokchina.cn";
+    case "eu":
+    default:
+      return "https://mapi.storyblok.com/v1";
+  }
+}
 
 server.tool(
- "fetch-stories",
- "Fetches stories from Storyblok",
- {},
- async ({}) => {
-   try {
-     const response = await fetch(
-       `https://mapi.storyblok.com/v1/spaces/${currentSpaceId}/stories/`,
-       {
-         headers: {
-           Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
-         },
-       }
-     );
-     if (!response.ok) {
-       throw new Error(`Failed to fetch stories: ${response.statusText}`);
-     }
-     const data = await response.json();
-     return {
-       content: [
-         {
-           type: "text",
-           text: JSON.stringify(data, null, 2),
-         },
-       ],
-     };
-   } catch (error) {
-     console.error("Error in story fetch tool:", error);
-     return {
-       isError: true,
-       content: [
-         {
-           type: "text",
-           text: `Error: ${
-             error instanceof Error ? error.message : String(error)
-           }`,
-         },
-       ],
-     };
-   }
- }
+  "set-region",
+  "Permite establecer manualmente la región del servidor de Storyblok (eu, us, ap, ca, cn). Si no se usa, la región se detecta automáticamente por el ID del espacio.",
+  { region: z.enum(["eu", "us", "ap", "ca", "cn"]).describe("Región: 'eu', 'us', 'ap', 'ca', 'cn'") },
+  async ({ region }) => {
+    storyblokRegion = region;
+    return {
+      content: [
+        {
+          type: "text",
+          text: `La región de Storyblok ha sido actualizada manualmente a: ${storyblokRegion}`,
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "fetch-stories",
+  "Fetches stories from Storyblok",
+  {},
+  async ({}) => {
+    try {
+      const response = await fetch(
+        `${getStoryblokApiBase()}/spaces/${currentSpaceId}/stories/`,
+        {
+          headers: {
+            Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch stories: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(data, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error in story fetch tool:", error);
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+      };
+    }
+  }
 );
 
 server.tool(
@@ -88,7 +129,7 @@ server.tool(
   async ({}) => {
     try {
       const response = await fetch(
-        `https://mapi.storyblok.com/v1/spaces/${currentSpaceId}/components/`,
+        `${getStoryblokApiBase()}/spaces/${currentSpaceId}/components/`,
         {
           headers: {
             Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
@@ -131,7 +172,7 @@ server.tool(
   async ({}) => {
     try {
       const response = await fetch(
-        `https://mapi.storyblok.com/v1/spaces/${currentSpaceId}/assets/`,
+        `${getStoryblokApiBase()}/spaces/${currentSpaceId}/assets/`,
         {
           headers: {
             Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
@@ -184,15 +225,29 @@ server.tool(
 
 server.tool(
   "set-space-id",
-  "Permite establecer el ID del espacio de Storyblok a consultar.",
+  "Permite establecer el ID del espacio de Storyblok a consultar. La región se detecta automáticamente salvo que se haya forzado manualmente.",
   { spaceId: z.string().describe("Nuevo ID del espacio de Storyblok") },
   async ({ spaceId }) => {
     currentSpaceId = spaceId;
+    // Si la región fue forzada manualmente, no la cambiamos
+    if (!storyblokRegion) {
+      // Se detecta automáticamente la región
+      const region = detectRegionFromSpaceId(spaceId);
+      storyblokRegion = undefined; // Para que getStoryblokApiBase use la detección automática
+      return {
+        content: [
+          {
+            type: "text",
+            text: `El ID del espacio ha sido actualizado a: ${currentSpaceId}. Región detectada: ${region}`,
+          },
+        ],
+      };
+    }
     return {
       content: [
         {
           type: "text",
-          text: `El ID del espacio ha sido actualizado a: ${currentSpaceId}`,
+          text: `El ID del espacio ha sido actualizado a: ${currentSpaceId}. Región manual: ${storyblokRegion}`,
         },
       ],
     };
@@ -262,7 +317,7 @@ server.tool(
   async ({ query }) => {
     try {
       const response = await fetch(
-        `https://mapi.storyblok.com/v1/spaces/${currentSpaceId}/stories/`,
+        `${getStoryblokApiBase()}/spaces/${currentSpaceId}/stories/`,
         {
           headers: {
             Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
@@ -312,7 +367,7 @@ server.tool(
   async ({ storyId }) => {
     try {
       const response = await fetch(
-        `https://mapi.storyblok.com/v1/spaces/${currentSpaceId}/stories/${storyId}`,
+        `${getStoryblokApiBase()}/spaces/${currentSpaceId}/stories/${storyId}`,
         {
           headers: {
             Authorization: `${process.env.STORYBLOK_MANAGEMENT_TOKEN}`,
