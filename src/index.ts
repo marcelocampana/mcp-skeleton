@@ -51,11 +51,11 @@ function getStoryblokApiBase() {
     case "us":
       return "https://api-us.storyblok.com/v1";
     case "ap":
-      return "https://api-ap.storyblok.com/v2";
+      return "https://api-ap.storyblok.com/v1";
     case "ca":
-      return "https://api-ca.storyblok.com/v2";
+      return "https://api-ca.storyblok.com/v1";
     case "cn":
-      return "https://app.storyblokchina.cn";
+      return "https://app.storyblokchina.cn/v1";
     case "eu":
     default:
       return "https://mapi.storyblok.com/v1";
